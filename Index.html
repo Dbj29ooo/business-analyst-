@@ -1,0 +1,186 @@
+"""
+CEO GEM – Single File Business Intelligence System
+Run with:
+  pip install fastapi uvicorn streamlit requests pydantic
+  uvicorn app:api --reload
+  streamlit run app.py
+"""
+
+# ======================
+# IMPORTS
+# ======================
+from fastapi import FastAPI
+from pydantic import BaseModel
+from typing import List, Dict, Optional
+import streamlit as st
+import requests
+import time
+
+# ======================
+# DATA MODELS
+# ======================
+class BusinessModel(BaseModel):
+    name: str
+    industry: str
+    revenue_model: str
+    target_customer: str
+    geography: str
+
+class ScanResult(BaseModel):
+    findings: List[str]
+    confidence: float
+    sources: List[str]
+
+class Decision(BaseModel):
+    decision: str
+    reason: str
+    confidence: float
+
+class Step(BaseModel):
+    step_id: str
+    question: str
+    output: Optional[Dict] = None
+
+# ======================
+# INTERNET SCAN ENGINE
+# ======================
+class ScanEngine:
+    def scan(self, query: str, scope: str) -> ScanResult:
+        """
+        Replace this with real web search later.
+        """
+        print(f"[INTERNET SCAN | {scope}] {query}")
+
+        simulated_findings = [
+            f"Detected dominant patterns related to: {query}",
+            f"Common risks and structures observed in {scope} scope"
+        ]
+
+        return ScanResult(
+            findings=simulated_findings,
+            confidence=0.82,
+            sources=["industry_reports", "public_web"]
+        )
+
+# ======================
+# CEO GEM (META INTELLIGENCE)
+# ======================
+class CEOGem:
+    def __init__(self):
+        self.scanner = ScanEngine()
+
+    def analyze(self, business: BusinessModel) -> Dict:
+        query = (
+            f"Business models, required functions, risks, "
+            f"and structural patterns in {business.industry}"
+        )
+
+        scan = self.scanner.scan(query, scope="STRUCTURAL")
+
+        required_steps = [
+            "VALUE_DEFINITION",
+            "DEMAND_CREATION",
+            "DEMAND_CAPTURE",
+            "CONVERSION",
+            "DELIVERY",
+            "RETENTION",
+            "CONTROL"
+        ]
+
+        return {
+            "decision": "DEFINE_SYSTEM",
+            "required_steps": required_steps,
+            "insights": scan.findings,
+            "confidence": scan.confidence
+        }
+
+# ======================
+# STEP ENGINE
+# ======================
+class StepEngine:
+    def __init__(self):
+        self.scanner = ScanEngine()
+
+    def run_step(self, step: Step) -> Step:
+        scan = self.scanner.scan(step.question, scope="TACTICAL")
+
+        step.output = {
+            "answer": scan.findings,
+            "confidence": scan.confidence
+        }
+        return step
+
+# ======================
+# FASTAPI BACKEND (GPT-LIKE API)
+# ======================
+api = FastAPI()
+ceo_gem = CEOGem()
+step_engine = StepEngine()
+
+@api.post("/analyze")
+def analyze_business(business: BusinessModel):
+    return ceo_gem.analyze(business)
+
+@api.post("/run_step")
+def run_step(step: Step):
+    return step_engine.run_step(step)
+
+# ======================
+# STREAMLIT DASHBOARD (GPT-STYLE UI)
+# ======================
+st.set_page_config(page_title="CEO GEM", layout="wide")
+st.title("💎 CEO GEM — Business Intelligence GPT")
+
+st.sidebar.header("Plug In a Business")
+
+name = st.sidebar.text_input("Business Name")
+industry = st.sidebar.text_input("Industry")
+revenue = st.sidebar.text_input("Revenue Model")
+customer = st.sidebar.text_input("Target Customer")
+geo = st.sidebar.text_input("Geography")
+
+if st.sidebar.button("Analyze Business"):
+    payload = {
+        "name": name,
+        "industry": industry,
+        "revenue_model": revenue,
+        "target_customer": customer,
+        "geography": geo
+    }
+
+    with st.spinner("CEO GEM scanning the internet..."):
+        time.sleep(1)
+        res = requests.post("http://localhost:8000/analyze", json=payload)
+
+    st.subheader("CEO GEM Analysis")
+    st.json(res.json())
+
+    st.session_state["steps"] = res.json()["required_steps"]
+
+# ======================
+# STEP EXECUTION UI
+# ======================
+if "steps" in st.session_state:
+    st.divider()
+    st.header("🧩 Execute Steps")
+
+    for step_name in st.session_state["steps"]:
+        question = st.text_input(
+            f"Question for {step_name}",
+            f"What does best practice look like for {step_name.lower()}?"
+        )
+
+        if st.button(f"Run {step_name}"):
+            step_payload = {
+                "step_id": step_name,
+                "question": question
+            }
+
+            with st.spinner(f"{step_name} scanning the internet..."):
+                res = requests.post(
+                    "http://localhost:8000/run_step",
+                    json=step_payload
+                )
+
+            st.success(f"{step_name} Complete")
+            st.json(res.json())
